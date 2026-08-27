@@ -1,0 +1,46 @@
+[Unit]
+Description=PlexyDesk Display Manager
+Documentation=https://github.com/aspect-apps/plexyshell
+After=systemd-user-sessions.service plymouth-start.service systemd-logind.service
+Before=getty@tty1.service plymouth-quit.service plymouth-quit-wait.service
+Conflicts=getty@tty1.service
+Wants=systemd-user-sessions.service
+Requires=systemd-logind.service
+
+[Service]
+Type=simple
+ExecStart=@PLEXY_DM_EXEC@
+# Quit Plymouth splash once the DM has taken over the graphics VT.
+ExecStartPost=-/usr/bin/plymouth --quit
+ExecReload=/bin/kill -SIGHUP $MAINPID
+Restart=always
+RestartSec=2
+StandardInput=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+# TTYVHangup must stay off: on RHEL 9 the vhangup() issued by systemd sends
+# SIGHUP to plexy-dm before it has blocked signals, killing it instantly and
+# triggering a start-limit-hit crash loop.
+TTYVHangup=no
+TTYVTDisallocate=no
+
+# Environment
+Environment=PLEXY_DM_CONFIG=@PLEXY_DM_CONFIG@
+
+# Security hardening
+# DM spawns user sessions — must NOT sandbox filesystem
+ProtectHome=no
+PrivateTmp=no
+LockPersonality=yes
+MemoryDenyWriteExecute=no
+
+# DM needs unrestricted device access for DRM, input, VTs, console
+DevicePolicy=auto
+
+# Resource limits
+TasksMax=200
+TimeoutStopSec=30
+KillMode=mixed
+
+[Install]
+Alias=display-manager.service
